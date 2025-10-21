@@ -1,0 +1,75 @@
+{
+  "name": "leave_form",
+  "label": "Leave Application",
+  "items": {
+    "full_name": {
+      "name": "full_name",
+      "display": { "label": "Full Name", "placeholder": "Enter your name" },
+      "rule": "required",
+      "props": { "maxlength": 280 },
+      "builder": { "type": "simple_input" },
+      "layout": "Normal",
+      "type": "Text"
+    },
+    "email": {
+      "name": "email",
+      "display": { "label": "Email", "placeholder": "Enter your email" },
+      "rule": "required",
+      "props": {},
+      "builder": { "type": "simple_input" },
+      "layout": "Normal",
+      "type": "Text"
+    },
+    "duration": {
+      "name": "duration",
+      "display": {
+        "label": "Leave Type",
+        "placeholder": "Select duration"
+      },
+      "rule": "required",
+      "enum": [
+        { "label": "Half Day", "value": "half" },
+        { "label": "Full Day", "value": "full" }
+      ],
+      "builder": { "type": "simple_choice" },
+      "layout": "Normal",
+      "type": "Select"
+    },
+    "days": {
+      "name": "days",
+      "display": { "label": "Number of Days" },
+      "prefill": { "value": 1 },
+      "value_constraints": {
+        "maximum": 1000000,
+        "allow_decimal": 0
+      },
+      "visible": { "duration": "required|is:full" },
+      "builder": { "type": "simple_input" },
+      "layout": "Normal",
+      "type": "Number"
+    },
+    "start_date": {
+      "name": "start_date",
+      "display": { "label": "Start Date" },
+      "rule": "required",
+      "builder": { "type": "simple_date" },
+      "layout": "Normal",
+      "type": "Date"
+    },
+    "reason": {
+      "name": "reason",
+      "display": {
+        "label": "Reason for Leave",
+        "placeholder": "Enter your reason"
+      },
+      "rule": "required",
+      "builder": { "type": "simple_textarea" },
+      "layout": "Normal",
+      "type": "Textarea"
+    }
+  },
+  "meta": {
+    "created_by": "system",
+    "version": 1
+  }
+}
