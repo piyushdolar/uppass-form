@@ -5,18 +5,22 @@
     "full_name": {
       "name": "full_name",
       "display": { "label": "Full Name", "placeholder": "Enter your name" },
-      "rule": "required",
+      "rule": true,
+      "visible": true,
       "props": { "maxlength": 280 },
       "builder": { "type": "simple_input" },
+      "sequence": 1,
       "layout": "Normal",
       "type": "Text"
     },
     "email": {
       "name": "email",
       "display": { "label": "Email", "placeholder": "Enter your email" },
-      "rule": "required",
+      "rule": true,
+      "visible": true,
       "props": {},
       "builder": { "type": "simple_input" },
+      "sequence": 2,
       "layout": "Normal",
       "type": "Text"
     },
@@ -26,12 +30,14 @@
         "label": "Leave Type",
         "placeholder": "Select duration"
       },
-      "rule": "required",
+      "rule": true,
+      "visible": true,
       "enum": [
         { "label": "Half Day", "value": "half" },
         { "label": "Full Day", "value": "full" }
       ],
       "builder": { "type": "simple_choice" },
+      "sequence": 3,
       "layout": "Normal",
       "type": "Select"
     },
@@ -45,14 +51,17 @@
       },
       "visible": { "duration": "required|is:full" },
       "builder": { "type": "simple_input" },
+      "sequence": 4,
       "layout": "Normal",
       "type": "Number"
     },
     "start_date": {
       "name": "start_date",
       "display": { "label": "Start Date" },
-      "rule": "required",
+      "rule": true,
+      "visible": true,
       "builder": { "type": "simple_date" },
+      "sequence": 5,
       "layout": "Normal",
       "type": "Date"
     },
@@ -62,8 +71,10 @@
         "label": "Reason for Leave",
         "placeholder": "Enter your reason"
       },
-      "rule": "required",
+      "rule": true,
+      "visible": true,
       "builder": { "type": "simple_textarea" },
+      "sequence": 6,
       "layout": "Normal",
       "type": "Textarea"
     }

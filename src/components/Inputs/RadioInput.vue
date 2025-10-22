@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { defineProps } from 'vue'
-
 interface Option {
   label: string
   value: string
 }
 
 interface Props {
-  modelValue: string | null
+  modelValue: string | null | undefined | number
   id: string
   options: Option[]
 }

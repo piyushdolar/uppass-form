@@ -1,12 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-interface Schema {
-  name: string
-  label: string
-  items: Record<string, any>
-  meta?: Record<string, any>
-}
+import type { Schema } from '@/types/schema'
 
 export const useFormStore = defineStore('formStore', () => {
   const schema = ref<Schema | null>(null)
@@ -94,9 +89,12 @@ export const useFormStore = defineStore('formStore', () => {
       console.log('📤 Imported new schema successfully')
 
       return { success: true }
-    } catch (err: any) {
-      console.error('❌ Failed to import schema:', err)
-      return { success: false, message: err.message || 'Invalid schema file' }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error('❌ Failed to import schema:', err.message)
+        return { success: false, message: err.message }
+      }
+      return { success: false, message: 'Invalid schema file' }
     }
   }
 

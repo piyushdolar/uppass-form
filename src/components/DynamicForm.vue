@@ -1,19 +1,20 @@
 <script setup lang="ts">
-import { defineProps, reactive, watch, ref } from 'vue'
+import { reactive, watch, ref } from 'vue'
 import TextInput from './Inputs/TextInput.vue'
 import RadioInput from './Inputs/RadioInput.vue'
+import SelectInput from './Inputs/SelectInput.vue'
+import type { Schema } from '@/types/schema'
 
-const props = defineProps<{ schema: any }>()
-
-const form = reactive<Record<string, any>>({})
+const props = defineProps<{ schema: Schema }>()
+const form = reactive<Record<string, string | number | null>>({})
 const errors = reactive<Record<string, string>>({})
 const submitMessage = ref('')
 
 function initForm() {
-  // accept either a ref-wrapped schema or a plain object
-  const sch = props.schema && props.schema.value ? props.schema.value : props.schema
+  const sch = props.schema
   if (!sch) return
-  // clear
+
+  // clear form and errors
   for (const k of Object.keys(form)) delete form[k]
   for (const k of Object.keys(errors)) delete errors[k]
   submitMessage.value = ''
@@ -21,14 +22,20 @@ function initForm() {
   const items = sch.items || {}
   for (const key of Object.keys(items)) {
     const fld = items[key]
-    if (fld?.prefill?.value !== undefined) form[key] = fld.prefill.value
-    else form[key] = fld.type === 'Radio' ? null : ''
-  }
-  if (sch.days) {
-    const key = sch.days.name || 'days'
-    form[key] = sch.days?.prefill?.value ?? ''
+    if (!fld) continue
+
+    if (fld.prefill?.value !== undefined) {
+      form[key] = fld.prefill.value
+    } else if (fld.type === 'Date' && key === 'start_date') {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      form[key] = tomorrow.toISOString().split('T')[0] ?? ''
+    } else {
+      form[key] = fld.type === 'Radio' ? null : ''
+    }
   }
 }
+
 
 watch(() => props.schema, initForm, { immediate: true })
 
@@ -36,14 +43,17 @@ function validateAndSubmit() {
   for (const k of Object.keys(errors)) delete errors[k]
   submitMessage.value = ''
   let ok = true
-  const sch = props.schema && props.schema.value ? props.schema.value : props.schema
+  const sch = props.schema
   if (!sch) return
   const items = sch.items || {}
+  console.log(form)
   for (const key of Object.keys(items)) {
     const fld = items[key]
+    if (!fld) continue
     const val = form[key]
+
     // Required validation
-    if (fld.rule && fld.rule.includes('required')) {
+    if (fld.rule) {
       if (val === '' || val === null || val === undefined) {
         errors[key] = 'This field is required'
         ok = false
@@ -59,38 +69,39 @@ function validateAndSubmit() {
       }
     }
   }
-  if (sch.days) {
-    const k = sch.days.name || 'days'
-    const max = sch.days.value_constraints?.maximum
-    if (max !== undefined && Number(form[k]) > max) {
-      errors[k] = `Maximum allowed is ${max}`
-      ok = false
-    }
-  }
 
   if (ok) {
-    submitMessage.value = 'Validation passed — ready to submit.'
-    // for now just log the form
+    submitMessage.value = 'Validation passed'
 
-    console.log('Form data:', JSON.parse(JSON.stringify(form)))
+    // Alert the user entered values
+    alert('Form submitted:\n' + JSON.stringify(form, null, 2))
   }
 }
+
 </script>
 
 <template>
   <div class="bg-white rounded-xl shadow p-6 sm:p-8">
-    <header class="mb-4">
-      <h1 class="text-xl font-semibold text-gray-900">{{ (props.schema && props.schema.value ? props.schema.value.label : props.schema?.label) ||
-        'Form' }}</h1>
-      <p v-if="props.schema && (props.schema.value ? props.schema.value.name : props.schema?.name)" class="text-xs text-gray-500 mt-1">
-        Schema: {{ props.schema && props.schema.value ? props.schema.value.name : props.schema?.name }}
-      </p>
+    <header class="mb-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-semibold text-gray-900"> {{ props.schema?.label || 'Form' }}</h1>
+        <p v-if="props.schema" class="text-xs text-gray-500 mt-1">
+          Schema: {{ props.schema.name }}
+        </p>
+      </div>
+
+      <!-- User page redirection -->
+      <router-link to="/admin" class="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 text-sm font-medium">
+        👤 Open Admin Page
+      </router-link>
     </header>
 
     <form @submit.prevent="validateAndSubmit" class="space-y-4">
       <template v-for="(field, key) in (props.schema?.items || {})" :key="key">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">{{ field.display?.label || field.name }}</label>
+        <div v-if="field.visible">
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ field.display?.label || field.name }}
+            <span v-if="field.rule" class="text-red-500">*</span>
+          </label>
 
           <template v-if="field.type === 'Text'">
             <TextInput v-model="form[key]" :id="key" :placeholder="field.display?.placeholder || ''" :maxlength="field.props?.maxlength" />
@@ -115,21 +126,13 @@ function validateAndSubmit() {
               :placeholder="field.display?.placeholder || ''"></textarea>
           </template>
 
+          <template v-else-if="field.type === 'Select'">
+            <SelectInput v-model="form[key]" :id="`select-${field.key}`" :options="field.enum" />
+          </template>
+
           <div v-if="errors[key]" class="text-xs text-red-500 mt-1">{{ errors[key] }}</div>
         </div>
       </template>
-
-      <div v-if="props.schema && (props.schema.value ? props.schema.value.days : props.schema?.days)" class="pt-2">
-        <label class="block text-sm font-medium text-gray-700 mb-1">{{ (props.schema && props.schema.value ? props.schema.value.days.display?.label :
-          props.schema?.days?.display?.label) || 'days' }}</label>
-        <input type="number"
-          v-model.number="form[(props.schema && props.schema.value ? props.schema.value.days.name : props.schema?.days?.name) || 'days']"
-          class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-200" />
-        <div v-if="errors[(props.schema && props.schema.value ? props.schema.value.days.name : props.schema?.days?.name) || 'days']"
-          class="text-xs text-red-500 mt-1">
-          {{ errors[(props.schema && props.schema.value ? props.schema.value.days.name : props.schema?.days?.name) || 'days'] }}
-        </div>
-      </div>
 
       <div class="pt-4 flex items-center gap-3">
         <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Validate</button>
@@ -138,7 +141,3 @@ function validateAndSubmit() {
     </form>
   </div>
 </template>
-
-<style scoped>
-/* Minimal scoped rules; layout provided by Tailwind utilities */
-</style>

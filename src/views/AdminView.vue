@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
+import draggable from 'vuedraggable'
 import { useFormStore } from '@/stores/formStore'
 import SelectInput from '../components/Inputs/SelectInput.vue'
 import TextInput from '../components/Inputs/TextInput.vue'
+import type { Schema, Field } from '@/types/schema'
 
 const formStore = useFormStore()
-const localSchema = ref<any>(null)
+const localSchema = ref<Schema | null>(null)
 
 const enums = [
   { label: 'Text', value: 'Text' },
@@ -13,8 +15,7 @@ const enums = [
   { label: 'Radio', value: 'Radio' },
   { label: 'Date', value: 'Date' },
   { label: 'Text Area', value: 'Textarea' },
-  { label: 'Number', value: 'Number' },
-  { label: 'Select Box', value: 'Select' },
+  { label: 'Number', value: 'Number' }
 ]
 
 onMounted(async () => {
@@ -22,11 +23,63 @@ onMounted(async () => {
   localSchema.value = JSON.parse(JSON.stringify(formStore.schema))
 })
 
-function validateAndSubmit() {
-  // Update the store with all changes
-  formStore.updateSchema(localSchema.value)
+const sortableFields = computed({
+  get() {
+    if (!localSchema.value?.items) return []
+    // Sort by existing sequence value first
+    return Object.entries(localSchema.value.items)
+      .sort((a, b) => (a[1].sequence || 0) - (b[1].sequence || 0))
+      .map(([fieldKey, value]) => ({
+        ...value,
+        key: value.key || fieldKey,
+      }))
 
-  // Save to localStorage
+  },
+  set(newOrder) {
+    if (!localSchema.value) return
+    arrayToObject(newOrder)
+  },
+})
+
+const arrayToObject = (newArray: Field[]) => {
+  const reordered: Record<string, Field> = {}
+  newArray.forEach((item, index) => {
+    item.sequence = index + 1
+    reordered[item.key] = item
+  })
+
+  if (localSchema.value) {
+    localSchema.value.items = reordered
+  }
+}
+
+function validateRequiredFields(): boolean {
+  if (!localSchema.value) return false
+
+  const requiredKeys = ['full_name', 'duration', 'reason']
+
+  for (const key of requiredKeys) {
+    const field = localSchema.value.items[key]
+    if (!field) {
+      alert(`❌ Field "${key}" must be preset and not empty.`)
+      return false
+    }
+  }
+
+  return true
+}
+
+
+
+function validateAndSubmit() {
+  if (!localSchema.value) return // Exit if schema is not loaded
+
+  // Validate required fields first
+  if (!validateRequiredFields()) return
+
+  arrayToObject(sortableFields.value)
+  formStore.updateSchema(localSchema.value) // Now TypeScript is happy
+
   const saved = formStore.saveSchema()
 
   if (saved) {
@@ -35,6 +88,7 @@ function validateAndSubmit() {
     alert('❌ Failed to save schema. Please try again.')
   }
 }
+
 
 function resetToDefault() {
   if (confirm('Are you sure you want to reset to the default schema? All your changes will be lost.')) {
@@ -46,7 +100,7 @@ function resetToDefault() {
   }
 }
 
-function handleTypeChange(field: any, newType: string) {
+function handleTypeChange(field: Field, newType: Field['type']) {
   field.type = newType
 
   // Initialize type-specific structures
@@ -66,15 +120,20 @@ function handleTypeChange(field: any, newType: string) {
   }
 }
 
+
 function deleteField(key: string) {
+  // Prevent deletion if it would remove one of the required fields
+  const requiredKeys = ['full_name', 'duration', 'reason']
+  if (requiredKeys.includes(key)) {
+    alert(`❌ Cannot delete required field "${key}".`)
+    return
+  }
+
   if (localSchema.value?.items) {
-    if (Array.isArray(localSchema.value.items)) {
-      localSchema.value.items.splice(Number(key), 1)
-    } else {
-      delete localSchema.value.items[key]
-    }
+    delete localSchema.value.items[key]
   }
 }
+
 
 const fileInput = ref<HTMLInputElement | null>(null)
 
@@ -131,113 +190,132 @@ async function handleImport(event: Event) {
             <div v-else class="px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
               📄 Using Default Schema
             </div>
+
+            <!-- User page redirection -->
+            <router-link to="/user" class="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 text-sm font-medium">
+              👤 Open User Page
+            </router-link>
           </div>
         </header>
 
         <!-- Form -->
         <form @submit.prevent="validateAndSubmit" class="space-y-4">
-          <template v-for="(field, key) in (localSchema?.items || {})" :key="key">
-            <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Field Name -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Field Name
-                  </label>
-                  <TextInput v-model="field.label" :id="`label-${key}`" :placeholder="field.display?.label || ''" />
+          <draggable v-model="sortableFields" item-key="key" animation="200" ghost-class="opacity-60" handle=".drag-handle">
+            <template #item="{ element }">
+              <div class="border border-gray-200 rounded-lg p-4 bg-gray-50 mb-3">
+                <div class="flex items-center justify-between mb-3">
+                  <span class="cursor-grab text-gray-400 drag-handle" title="Drag to reorder">☰</span>
+                  <span class="text-xs text-gray-500">Seq: {{ element.sequence }}</span>
                 </div>
 
-                <!-- Placeholder -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Placeholder
-                  </label>
-                  <TextInput v-model="field.placeholder" :id="`placeholder-${key}`" :placeholder="field.display?.placeholder || ''" />
-                </div>
-
-                <!-- Max Length -->
-                <div v-if="field.props?.maxlength">
-                  <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Max Length
-                  </label>
-                  <TextInput v-model="field.props.maxlength" :id="`maxlength-${key}`" type="number" placeholder="Maximum length" />
-                </div>
-
-                <!-- Field Type -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Field Type
-                  </label>
-                  <SelectInput :model-value="field.type" @update:model-value="handleTypeChange(field, $event)" :id="`type-${key}`" :options="enums" />
-                </div>
-
-                <!-- If input box is select -->
-                <div v-if="field.type === 'Select'">
-                  <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Available Options (Comma Separated)
-                  </label>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <!-- Field Name -->
                   <div>
-                    <span v-for="badge in field.enum" :key="badge"
-                      class="inline-flex items-center rounded-md bg-gray-400/10 px-2 py-1 text-xs font-medium text-gray-400 inset-ring inset-ring-gray-400/20 mr-2 mb-2">
-                      {{ badge.label }}
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Field Name</label>
+                    <TextInput v-model="element.label" :id="`label-${element.key}`" :placeholder="element.display?.label || ''" />
+                  </div>
+
+                  <!-- Placeholder -->
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Placeholder</label>
+                    <TextInput v-model="element.placeholder" :id="`placeholder-${element.key}`" :placeholder="element.display?.placeholder || ''" />
+                  </div>
+
+                  <!-- Max Length -->
+                  <div v-if="element?.maxlength">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                      Max Length
+                    </label>
+                    <TextInput v-model="element.maxlength" :id="`maxlength-${element.key}`" type="number" placeholder="Maximum length" />
+                  </div>
+
+                  <!-- Field Type -->
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Field Type</label>
+                    <span v-if="element.type === 'Select'">
+                      Select Box (Not changable)
                     </span>
+                    <SelectInput v-else :model-value="element.type" :id="`select-${element.key}`"
+                      @update:model-value="handleTypeChange(element, $event)" :options="enums" />
+                  </div>
+
+                  <!-- If input box is select -->
+                  <div v-if="element.type === 'Select'">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                      Available Options (Comma Separated)
+                    </label>
+                    <div>
+                      <span v-for="badge in element.enum" :key="badge"
+                        class="inline-flex items-center rounded-md bg-gray-400/10 px-2 py-1 text-xs font-medium text-gray-400 inset-ring inset-ring-gray-400/20 mr-2 mb-2">
+                        {{ badge.label }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Required Checkbox -->
+                  <div>
+                    <div class="mt-3">
+                      <label class="inline-flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" v-model="element.visible" class="form-checkbox h-4 w-4 text-indigo-600 rounded">
+                        <span class="text-sm text-gray-700">Make field visible?</span>
+                      </label>
+                    </div>
+
+                    <div class="mt-3">
+                      <label class="inline-flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" v-model="element.rule" class="form-checkbox h-4 w-4 text-indigo-600 rounded">
+                        <span class="text-sm text-gray-700">Field is required</span>
+                      </label>
+                    </div>
+
+                    <!-- Allow Decimal (for Number type) -->
+                    <div v-if="element.type === 'Number' && element.value_constraints" class="mt-2">
+                      <label class="inline-flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" v-model="element.value_constraints.allow_decimal"
+                          class="form-checkbox h-4 w-4 text-indigo-600 rounded">
+                        <span class="text-sm text-gray-700">Allow decimal values</span>
+                      </label>
+                    </div>
                   </div>
                 </div>
 
-                <!-- Required Checkbox -->
-                <div>
-                  <div class="mt-3">
-                    <label class="inline-flex items-center space-x-2 cursor-pointer">
-                      <input type="checkbox" v-model="field.rule" class="form-checkbox h-4 w-4 text-indigo-600 rounded">
-                      <span class="text-sm text-gray-700">Field is required</span>
-                    </label>
-                  </div>
-
-                  <!-- Allow Decimal (for Number type) -->
-                  <div v-if="field.type === 'Number' && field.value_constraints" class="mt-2">
-                    <label class="inline-flex items-center space-x-2 cursor-pointer">
-                      <input type="checkbox" v-model="field.value_constraints.allow_decimal" class="form-checkbox h-4 w-4 text-indigo-600 rounded">
-                      <span class="text-sm text-gray-700">Allow decimal values</span>
-                    </label>
-                  </div>
-                </div>
-
-                <!-- Delete Button -->
-                <button type="button" @click="deleteField(key)"
+                <!-- Delete -->
+                <button type="button" @click="deleteField(element.key)"
                   class="mt-4 inline-flex items-center px-3 py-1.5 text-sm border border-red-300 text-red-700 bg-red-50 rounded-md hover:bg-red-100 transition-colors">
                   🗑️ Delete Field
                 </button>
               </div>
-            </div>
-          </template>
+            </template>
+          </draggable>
+
 
           <!-- Action Buttons -->
           <div class="flex flex-wrap gap-3 pt-6 border-t">
             <button type="submit" :disabled="formStore.isSaving"
-              class="px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              class="px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               {{ formStore.isSaving ? '💾 Saving...' : '💾 Save Changes' }}
             </button>
 
             <button type="button" @click="localSchema = JSON.parse(JSON.stringify(formStore.schema))"
-              class="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium transition-colors">
+              class="px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium transition-colors">
               🔄 Discard Changes
             </button>
 
             <input ref="fileInput" type="file" accept="application/json" class="hidden" @change="handleImport" />
 
             <button type="button" @click="fileInput?.click()"
-              class="px-6 py-2.5 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 font-medium transition-colors">
+              class="px-4 py-2.5 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 font-medium transition-colors">
               📤 Import Schema
             </button>
 
 
             <button type="button" @click="formStore.exportSchema()"
-              class="px-6 py-2.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium transition-colors">
+              class="px-4 py-2.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium transition-colors">
               📥 Export Backup
             </button>
 
             <button type="button" @click="resetToDefault()" v-if="formStore.hasLocalChanges()"
-              class="px-6 py-2.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium transition-colors">
+              class="px-4 py-2.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium transition-colors">
               ⚠️ Reset to Default
             </button>
           </div>

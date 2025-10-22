@@ -24,7 +24,7 @@ onMounted(() => {
       </div>
 
       <div v-else>
-        <DynamicForm :schema="formStore.schema" />
+        <DynamicForm v-if="formStore.schema" :schema="formStore.schema" />
       </div>
     </div>
   </div>
