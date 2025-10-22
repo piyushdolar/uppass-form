@@ -91,7 +91,7 @@ function validateAndSubmit() {
       </div>
 
       <!-- User page redirection -->
-      <router-link to="/admin" class="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 text-sm font-medium">
+      <router-link to="/admin" class="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 text-xs font-medium">
         👤 Open Admin Page
       </router-link>
     </header>

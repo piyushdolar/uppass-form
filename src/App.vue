@@ -19,7 +19,7 @@ const version = pkg?.version || '1.0.0'
         <div class="flex items-center space-x-3">
           <div class="text-sm text-gray-600 p-4 flex items-center space-x-4 divide-x divide-gray-200">
             <div class="pr-4"><span class="font-semibold">Received:</span> Tue, Oct 21, 10:59 AM</div>
-            <div class="px-4"><span class="font-semibold">Submit Date:</span> 22/10/2025 3:30 PM</div>
+            <div class="px-4"><span class="font-semibold">Submit Date:</span> 22/10/2025 3:43 PM</div>
             <div class="text-xs text-gray-500/80 px-2 py-0.5 rounded-md bg-gray-100">v{{ version }}</div>
           </div>
         </div>

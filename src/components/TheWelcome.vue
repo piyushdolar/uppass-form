@@ -1,5 +1,5 @@
 <template>
-  <div class="grid content-center justify-items-center min-h-screen">
+  <div class="grid content-center justify-items-center min-h-screen p-6">
     <div
       class="w-full max-w-4xl bg-white/80 dark:bg-gray-900/80 backdrop-blur rounded-3xl shadow-2xl border border-white/30 dark:border-gray-700 p-6 sm:p-10 lh-3">
       <header class="text-center mb-6">

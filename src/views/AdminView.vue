@@ -153,6 +153,32 @@ async function handleImport(event: Event) {
   target.value = '' // reset input
 }
 
+
+function addField() {
+  if (!localSchema.value) return
+
+  // Generate a unique key
+  const newKey = `field_${Date.now()}`
+
+  // Create default field object
+  const newField: Field = {
+    key: newKey,
+    name: newKey,
+    label: 'New Field',
+    type: 'Text', // default type
+    sequence: Object.keys(localSchema.value.items).length + 1,
+    visible: true,
+    rule: false,
+    display: { label: 'New Field' },
+    props: { maxlength: 100 }
+  }
+
+  // Add to schema
+  localSchema.value.items[newKey] = newField
+
+  // Trigger reactivity for sortableFields
+  arrayToObject([...sortableFields.value, newField])
+}
 </script>
 
 <template>
@@ -173,26 +199,27 @@ async function handleImport(event: Event) {
       <div v-else-if="localSchema">
         <!-- Header with Status Badge -->
         <header class="mb-6">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center">
             <div>
               <h1 class="text-xl font-semibold text-gray-900">
                 {{ localSchema.label || 'Form' }} - Admin Panel
               </h1>
               <p class="text-xs text-gray-500 mt-1">
                 Schema: {{ localSchema.name }}
+
               </p>
             </div>
 
             <!-- Status Badge -->
-            <div v-if="formStore.hasLocalChanges()" class="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
+            <div v-if="formStore.hasLocalChanges()" class="px-3 py-1 ml-auto bg-yellow-100 text-yellow-800 text-xs font-medium rounded-md">
               📝 Using Custom Schema
             </div>
-            <div v-else class="px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+            <div v-else class="px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-md">
               📄 Using Default Schema
             </div>
 
             <!-- User page redirection -->
-            <router-link to="/user" class="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 text-sm font-medium">
+            <router-link to="/user" class="px-3 py-1 ml-2 bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 text-xs font-medium">
               👤 Open User Page
             </router-link>
           </div>
@@ -281,41 +308,46 @@ async function handleImport(event: Event) {
 
                 <!-- Delete -->
                 <button type="button" @click="deleteField(element.key)"
-                  class="mt-4 inline-flex items-center px-3 py-1.5 text-sm border border-red-300 text-red-700 bg-red-50 rounded-md hover:bg-red-100 transition-colors">
+                  class="mt-2 inline-flex items-center px-4 py-2 text-sm font-medium border border-red-500 text-red-700 bg-red-100 rounded-md hover:bg-red-200 transition-colors cursor-pointer">
                   🗑️ Delete Field
                 </button>
               </div>
             </template>
           </draggable>
 
+          <button type="button" @click="addField()"
+            class="inline-flex items-center px-4 py-2 text-sm font-medium border border-blue-500 text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors cursor-pointer">
+            ➕ Add Field
+          </button>
+
 
           <!-- Action Buttons -->
           <div class="flex flex-wrap gap-3 pt-6 border-t">
             <button type="submit" :disabled="formStore.isSaving"
-              class="px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              class="px-4 py-2.5 cursor-pointer bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               {{ formStore.isSaving ? '💾 Saving...' : '💾 Save Changes' }}
             </button>
 
             <button type="button" @click="localSchema = JSON.parse(JSON.stringify(formStore.schema))"
-              class="px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium transition-colors">
+              class="px-4 py-2.5 cursor-pointer bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium transition-colors">
               🔄 Discard Changes
             </button>
 
             <input ref="fileInput" type="file" accept="application/json" class="hidden" @change="handleImport" />
 
             <button type="button" @click="fileInput?.click()"
-              class="px-4 py-2.5 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 font-medium transition-colors">
+              class="px-4 py-2.5 cursor-pointer bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 font-medium transition-colors">
               📤 Import Schema
             </button>
 
 
             <button type="button" @click="formStore.exportSchema()"
-              class="px-4 py-2.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium transition-colors">
+              class="px-4 py-2.5 cursor-pointer bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium transition-colors">
               📥 Export Backup
             </button>
 
             <button type="button" @click="resetToDefault()" v-if="formStore.hasLocalChanges()"
-              class="px-4 py-2.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium transition-colors">
+              class="px-4 py-2.5 cursor-pointer bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium transition-colors">
               ⚠️ Reset to Default
             </button>
           </div>
